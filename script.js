@@ -1,86 +1,109 @@
 const canvas = document.getElementById('canvas1');
 const ctx = canvas.getContext('2d');
+const info = document.getElementById('info');
+const mousePositionInfo = document.getElementById('mouse-position-info');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
-const particlesArray = [];
-let hue = 0;
+//vector class
+class Vector {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+    add(vector) {
+        return new Vector(this.x + vector.x, this.y + vector.y);  // Return new vector instead of modifying
+    }
+    subtract(vector) {
+        return new Vector(this.x - vector.x, this.y - vector.y);  // Return new vector instead of modifying
+    }
+    scale(scalar) {
+        this.x *= scalar;
+        this.y *= scalar;
+    }
+    magnitude() {
+        return Math.sqrt(this.x * this.x + this.y * this.y);
+    }
+    dotProduct(vector) {
+        return this.x * vector.x + this.y * vector.y;
+    }
+    crossProduct(vector) {
+        return this.x * vector.y - this.y * vector.x;
+    }
+    angleBetween(vector) {
+        const mag1 = this.magnitude();
+        const mag2 = vector.magnitude();
+        if (mag1 === 0 || mag2 === 0) {
+            return 0;  // Return 0 if either vector has zero magnitude
+        }
+        return Math.acos(this.dotProduct(vector) / (mag1 * mag2));
+    }
+}
+
+//joint class
+class Joint {
+    constructor(vector, radius=10) {
+        this.vector = vector;  // Store the entire vector
+        this.radius = radius; 
+    }
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.vector.x, this.vector.y, this.radius, 0, Math.PI * 2);  
+        ctx.fillStyle = 'white';
+        ctx.fill();
+    }
+}
+let joints = [];  // Array to store joints
+// joints.push(new Joint(new Vector(canvas.width / 2, canvas.height / 2)));  // Add initial joint at the center
+const startingJoint = new Joint(new Vector(canvas.width / 2, canvas.height / 2));
+joints.push(startingJoint);  // Add initial joint at the center
+let mouseJoint = new Joint(new Vector(1,1));  // Variable to store the joint that is being dragged#
+joints.push(mouseJoint);
+
+canvas.addEventListener('mousemove', (event) => {
+    mousePositionInfo.innerHTML = `Mouse Position: (${event.x}, ${event.y})`;
+    joints[1].vector.x = event.x;
+    joints[1].vector.y = event.y;
+});
+
+
+canvas.addEventListener('click', (event) => {
+    let mouseVector = new Vector(event.x, event.y);
+    const newJoint = new Joint(mouseVector);  // Create new joint
+    joints.push(newJoint);  // Add joint to array
+});
+
+function animate() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.02)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    joints.forEach(joint => {
+        joint.draw();
+    });
+    connectJoints(joints);
+    requestAnimationFrame(animate);
+}
+animate();
+
+
+
+function connectJoints(joints){
+    joints.forEach((jointA, index) => {
+        joints[index+1] ? drawLine(jointA, joints[index+1]) : null;
+    });
+
+}
+
+function drawLine(jointA, jointB){
+    ctx.beginPath();
+    ctx.moveTo(jointA.vector.x, jointA.vector.y); 
+    ctx.lineTo(jointB.vector.x, jointB.vector.y); 
+    ctx.strokeStyle = 'white';
+    ctx.stroke();
+}
 
 window.addEventListener('resize', ()=> {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 });
 
-const mouse = {
-    x: undefined,
-    y: undefined,
-}
-
-canvas.addEventListener('click', (event) => {
-    mouse.x = event.x;
-    mouse.y = event.y;
-    for (let i = 0; i < 10; i++) {
-        particlesArray.push(new Particle());
-    } 
-});
-
-canvas.addEventListener('mousemove',  (event) => {
-    mouse.x = event.x;
-    mouse.y = event.y;
-    for (let i = 0; i < 10; i++) {
-        particlesArray.push(new Particle());
-    } 
-});
-
-class Particle {
-    constructor() {
-        this.x = mouse.x;
-        this.y = mouse.y;
-        // this.x = Math.random() * canvas.width;
-        // this.y = Math.random() * canvas.height;
-        this.size = Math.random() * 15 + 1;
-        this.speedX = Math.random() * 3 - 1.5;
-        this.speedY = Math.random() * 3 - 1.5;
-        this.color = `hsl(${hue}, 100%, 50%)`;
-    }
-    update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-        if (this.size > 0.2) this.size -= 0.1;
-    }
-    draw() {
-        ctx.fillStyle = this.color;
-        // ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-        // ctx.stroke();
-    }
-}
-
-function init() {
-    for (let i = 0; i < 100; i++) {
-        particlesArray.push(new Particle());
-    }
-}
-// init()
 
 
-function handleParticles() {
-    particlesArray.forEach((particle, index) => {
-        particle.update();
-        particle.draw();
-        particle.size <= 0.3 ? particlesArray.splice(index, 1) : null;
-    });
-}
-
-function animate() {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.02)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    handleParticles();
-    requestAnimationFrame(animate);
-    hue++;
-}
-animate();
-
-//define particle class with animate property

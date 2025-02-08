@@ -6,3 +6,14 @@
     top: 0;
     left: 0;
 }
+
+#info{
+    font-size: 12px;
+    position: absolute;
+    background-color: white;
+    top: 10px;
+    left: 10px;
+    height: 50px;
+    width: 200px;
+    z-index: 100;
+}

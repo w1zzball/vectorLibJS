@@ -15,6 +15,18 @@ class Vector {
         this.x = x;
         this.y = y;
     }
+    static sumOf(vector1, vector2) {
+        return new Vector(vector1.x + vector2.x, vector1.y + vector2.y);
+    }
+    static difference(vector1, vector2) {
+        return new Vector(vector1.x - vector2.x, vector1.y - vector2.y);
+    }
+    static dot(vector1, vector2) {
+        return vector1.x * vector2.x + vector1.y * vector2.y;
+    }
+    static cross(vector1, vector2) {
+        return vector1.x * vector2.y - vector1.y * vector2.x;
+    }
     add(vector) {
         return new Vector(this.x + vector.x, this.y + vector.y);  // Return new vector instead of modifying
     }
@@ -49,139 +61,63 @@ class Vector {
         }
         return Math.acos(this.dotProduct(vector) / (mag1 * mag2));
     }
-    draw(origin, color='white',width=1,scale=1){
-        /**  
-         * Draw the vector on the canvas
-         * @param {Vector} origin - Origin of the vector
-         * @param {string} color - Color of the vector
-         * @param {number} width - Width of the vector
-         * @param {number} scale - Scale of the vector
-         */
+    /**
+     * Draws a line from the given origin to the current vector position.
+     *
+     * @param {Vector} [origin=new Vector(0, 0)] - The starting point of the line.
+     * @param {string} [color='white'] - The color of the line.
+     * @param {number} [width=1] - The width of the line.
+     * @param {number} [scale=1] - The scale factor for the line.
+     */
+    draw(origin = new Vector(0, 0), color='white', width=1, scale=1){
+
         ctx.beginPath();
-        ctx.moveTo(origin.x,origin.y);
-        ctx.lineTo(origin.x+this.x*scale,origin.y+this.y*scale);
+        ctx.moveTo(origin.x, origin.y);
+        ctx.lineTo(this.x, this.y);  // Draw directly to mouse coordinates instead of offset
         ctx.strokeStyle = color;
         ctx.lineWidth = width;
         ctx.stroke();
     }
 }
-class Joint {
-    /**
-     * Joint Class
-     * @param {*} vector  - Vector object
-     * @param {*} radius - Radius of the joint
-     */
-    constructor(vector, radius=10) {
-        this.vector = vector;  // Store the entire vector
-        this.radius = radius; 
-    }
-    draw() {
-        ctx.beginPath();
-        ctx.arc(this.vector.x, this.vector.y, this.radius, 0, Math.PI * 2);  
-        ctx.fillStyle = 'white';
-        ctx.fill();
-    }
-}
 
-
+const mouseVector = new Vector(0,0);
+const center = new Vector(canvas.width/2, canvas.height/2);
 let joints = [];  // Array to store joints
-const startingJoint = new Joint(new Vector(canvas.width / 2, canvas.height / 2));
-const topJoint = new Joint(new Vector(canvas.width / 2, canvas.height / 2 - 100));  // New joint 100px above
-joints.push(startingJoint);  // Add initial joint at the center
-joints.push(topJoint);       // Add top joint
-const mouseJoint = new Joint(new Vector(1,1));  // Variable to store the joint that is being dragged#
-let mouseNormal = new Vector(0, 0);
-joints.push(mouseJoint);
 
-calculateNormal = (jointA, jointB) => {
-    const normal = jointA.vector.subtract(jointB.vector).normalize();
-    return new Vector(normal.y, -normal.x);
-}
-
-function calculateCrossVector() {
-    // Vector from starting joint to mouse
-    const mouseVector = mouseJoint.vector.subtract(startingJoint.vector);
-    // Vector from starting joint to top
-    const topVector = topJoint.vector.subtract(startingJoint.vector);
-    
-    // Calculate cross product magnitude (in 2D this is a scalar)
-    const crossMagnitude = mouseVector.crossProduct(topVector);
-    
-    // For visualization, we can return a vector perpendicular to the plane
-    return crossMagnitude;
-}
 
 canvas.addEventListener('mousemove', (event) => {
     mousePositionInfo.innerHTML = `Mouse Position: (${event.x}, ${event.y})`;
-    mouseJoint.vector.x = event.x;
-    mouseJoint.vector.y = event.y;
+    mouseVector.x = event.x;
+    mouseVector.y = event.y;
 });
 
-
-canvas.addEventListener('click', (event) => {
-    let mouseVector = new Vector(event.x, event.y);
-    const newJoint = new Joint(mouseVector);  // Create new joint
-    joints.push(newJoint);  // Add joint to array
-});
 
 function animate() {
-    ctx.fillStyle = 'rgba(0, 0, 0)';
+    ctx.fillStyle = 'rgba(0, 0, 0)';//clear canvas
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    joints.forEach(joint => {
-        joint.draw();
-    });
-    let mouseNormal = calculateNormal(startingJoint, mouseJoint);
-    connectJoints([topJoint, startingJoint]);  // Modified to include topJoint
-    connectJoints([startingJoint, mouseJoint]);  // Modified to include topJoint
-    drawPerpendicularLine(startingJoint, mouseJoint);  // Add this line
-    
-    // Display cross product magnitude
-    const crossMagnitude = calculateCrossVector();
-    const magnitudeInfo = document.getElementById('magnitude');
-    magnitudeInfo.innerHTML = `Cross Product: ${crossMagnitude.toFixed(2)}`;
+    drawCircle(mouseVector, 10, 'red');
+    mouseVector.draw(center, 'white', 1, 1);
     
     requestAnimationFrame(animate);
 }
 animate();
 
-function drawPerpendicularLine(jointA, jointB, length = 100) {
-    const normal = calculateNormal(jointA, jointB);
-    const midPoint = new Vector(
-        (jointA.vector.x + jointB.vector.x) / 2,
-        (jointA.vector.y + jointB.vector.y) / 2
-    );
-    
-    const perpEnd = new Vector(
-        midPoint.x + normal.x * length,
-        midPoint.y + normal.y * length
-    );
 
-    ctx.beginPath();
-    ctx.moveTo(midPoint.x, midPoint.y);
-    ctx.lineTo(perpEnd.x, perpEnd.y);
-    ctx.strokeStyle = 'red';  // Different color to distinguish
-    ctx.stroke();
+function connectVectors(jointA, jointB){
+    const vector = jointB.vector.subtract(jointA.vector);
+    vector.draw(jointA.vector);
 }
 
-function connectJoints(joints){
-    joints.forEach((jointA, index) => {
-        joints[index+1] ? drawLine(jointA, joints[index+1]) : null;
-    });
-
-}
-
-function drawLine(jointA, jointB){
-    ctx.beginPath();
-    ctx.moveTo(jointA.vector.x, jointA.vector.y); 
-    ctx.lineTo(jointB.vector.x, jointB.vector.y); 
-    ctx.strokeStyle = 'white';
-    ctx.stroke();
-}
 
 window.addEventListener('resize', ()=> {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 });
 
-
+function drawCircle(vector, radius, color){
+    ctx.beginPath();
+    ctx.arc(vector.x, vector.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+}
 
